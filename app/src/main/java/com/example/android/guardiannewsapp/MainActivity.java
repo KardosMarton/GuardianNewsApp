@@ -4,16 +4,20 @@ import android.app.LoaderManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.Loader;
+import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
+import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ListView;
 import android.widget.TextView;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,9 +25,11 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<List<News>> {
 
 
-    //Guardian news URL:
-    private static final String GUARDIAN_REQUEST_URL =
-            "https://content.guardianapis.com/search?q=sport&order-by=newest&show-preferences=author&show-tags=contributor&page-size=15&api-key=test";
+
+    /**Guradian news URL for URI Builder to expand what a user wants to read*/
+    private static final String GUARDIAN_REQUEST_BUILD_URL =
+            "https://content.guardianapis.com/search?";
+
     /** Adapter for the list of news */
     private NewsAdapter mAdapter;
 
@@ -101,7 +107,34 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public Loader<List<News>> onCreateLoader(int i, Bundle bundle) {
         // Create a new loader for the given URL
-        return new NewsLoader(this, GUARDIAN_REQUEST_URL);
+
+
+        /**
+         * Using the topic value, which comes from the settings panel to build the URL with uriBuilder
+         * Makes the app interactive, enables to find news in more topics
+         */
+        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
+        String topics = sharedPrefs.getString(
+                getString(R.string.settings_topics_key),
+                getString(R.string.settings_topic_default));
+        Uri baseUri = Uri.parse(GUARDIAN_REQUEST_BUILD_URL);
+        Uri.Builder uriBuilder = baseUri.buildUpon();
+
+        uriBuilder.appendQueryParameter("section", topics);
+        uriBuilder.appendQueryParameter("order-by", "newest");
+        uriBuilder.appendQueryParameter("show-preferences", "author");
+        uriBuilder.appendQueryParameter("show-tags","contributor");
+        uriBuilder.appendQueryParameter("page-size","15");
+        uriBuilder.appendQueryParameter("api-key","test");
+
+        Log.v("Mainactivity/URI:", uriBuilder.toString());
+
+        /**
+         *  Create a new loader for the URL provided by the topics given by the user
+         */
+        return new NewsLoader(this, uriBuilder.toString());
+
+
     }
 
     @Override
@@ -130,5 +163,27 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         mAdapter.clear();
     }
 
+    /**
+     *  Override the onCreateOptionsMenu(Menu menu) method to make the option menu visible
+     */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+       getMenuInflater().inflate(R.menu.main, menu);
+       return true;
+    }
 
+    /**
+     *  Override the onCreateOptionsMenu(Menu menu) method to make the option menu responsible
+     *  when the user clicks on our menu item
+     */
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            Intent settingsIntent = new Intent(this, SettingsActivity.class);
+            startActivity(settingsIntent);
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
 }
